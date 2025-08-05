@@ -1,3 +1,5 @@
+import logging
+
 import pandas as pd
 
 def process_stock_report(
@@ -58,3 +60,94 @@ process_stock_report(
     input_file_path='data/Available Stock Report.xlsx',
     output_file_path='data/new_report_basic.xlsx'
 )
+
+
+def create_pivot_table(
+        input_file_path: str,
+        output_file_path: str,
+        index_cols: list = None,
+        value_column: str = 'AVAILABLE',
+        column_to_pivot: str = 'STORE_CODE',
+        agg_func: str = 'sum',
+        exel_header_row: int = 0,
+):
+    """
+    Creates a pivot table from an Excel file, aggregates data and saves it.
+
+    Args:
+        input_file_path (str): Path to the input Excel file.
+        output_file_path (str): Path to save the generated pivot table Excel file.
+        index_cols (list, optional): A list of column names to use as the pivot table index. Defaults to common SKU/product attributes.
+        value_column (str, optional): The name of the column to aggregate (the 'values' in pivot_table).Defaults to 'AVAILABLE'.
+        column_to_pivot (str, optional): The name of the column whose unique values will become new columns.Defaults to 'STORE_CODE'.
+        agg_func (str, optional): The aggregation function to apply (e.g., 'sum', 'mean', 'count').Defaults to 'sum'.
+        excel_header_row (int, optional): The 0-indexed row number to use as the header when reading. Defaults to 0, assuming clean data.
+    """
+
+    try:
+        df = pd.read_excel(input_file_path, header=exel_header_row)
+        logging.info(f"Successfully read {input_file_path}. Columns: {df.columns}")
+    except FileNotFoundError:
+        logging.error(f"File {input_file_path} not found.")
+        return
+    except Exception as e:
+        logging.error(f"Error reading Excel file {input_file_path}: {e}")
+        return
+
+    if index_cols is None:
+        index_cols = [
+            'SKU_CODE', 'SKU_DESCRIPTION', 'Brand', 'Category',
+            'Activity', 'Gen', 'Subgen'
+        ]
+
+    # Validate that all required columns exist before proceeding
+    required_columns = index_cols + [value_column, column_to_pivot]
+    missing_columns = [col for col in required_columns if col not in df.columns]
+
+    if missing_columns:
+        logging.error(f"Error: Missing required columns in input file: {missing_columns}")
+        logging.info(f"Available columns: {list(df.columns)}")
+        return
+
+    try:
+        pivot_table = (
+            df.groupby(index_cols + [column_to_pivot])
+            [value_column]
+            .agg(agg_func)
+            .unstack(level=column_to_pivot, fill_value=0)
+        )
+
+        if column_to_pivot in pivot_table.columns.names:
+            pivot_table = pivot_table.rename_axis(columns=None)
+
+        pivot_table.to_excel(output_file_path)
+        logging.info(f"Successfully created pivot table in {output_file_path}")
+
+    except KeyError as e:
+        logging.error(f"Error: Column not found during pivot table creation: {e}. "
+                      f"Check 'index_cols', 'value_column', or 'column_to_pivot'.")
+    except Exception as e:
+        logging.error(f"An unexpected error occurred during pivot table creation: {e}")
+
+
+# Example 1: Basic usage with default arguments
+create_pivot_table(
+    input_file_path='data/new_report_basic.xlsx',
+    output_file_path='data/pivot_table_basic.xlsx',
+)
+
+# Example 2: Custom index columns and aggregation column
+# create_pivot_table(
+#     input_file_path='data/new_report_basic.xlsx',
+#     output_file_path='data/pivot_table_custom.xlsx',
+#     index_cols=['Brand', 'Category'],
+#     value_column='RESERVED', # Assuming 'RESERVED' is in the new_report_basic.xlsx
+#     agg_func='mean'
+# )
+
+# Example 3: Demonstrate missing column error
+# create_pivot_table(
+#     input_file_path='data/new_report_basic.xlsx',
+#     output_file_path='data/pivot_table_error.xlsx',
+#     index_cols=['NonExistentCol'], # This will trigger an error
+# )
