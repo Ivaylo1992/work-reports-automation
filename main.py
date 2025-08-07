@@ -64,6 +64,8 @@ def process_stock_report(
               .assign(**format_assignments)
             )
 
+            logging.info(f"Successfully read {input_file_path}. Columns: {df_processed.columns}")
+
             df_processed.to_excel(output_file_path, index=False)
         except FileNotFoundError:
             logging.error(f'File "{input_file_path}" not found.')
@@ -162,7 +164,10 @@ def merge_tables(
         None on failure.
     """
     stock_table = pd.read_excel(stock_table_path)
+    logging.info(f'Successfully read {stock_table_path}.')
+
     prices_df = pd.read_excel(prices_table_path)
+    logging.info(f'Successfully read {prices_table_path}.')
 
     if not needed_price_columns:
         needed_price_columns = ['SKU_CODE', 'SalePrice', 'InitialPrice', 'PurchasePrice']
