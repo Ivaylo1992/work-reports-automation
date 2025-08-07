@@ -22,9 +22,3 @@ def clean_prices_table(
     prices_data.rename(columns=columns_to_rename, inplace=True)
 
     prices_data.to_excel(output_file_path, index=False)
-
-clean_prices_table(
-    'data/prices.xlsx',
-    'data/clean_prices_basic.xlsx',
-    excel_header_row=2,
-)

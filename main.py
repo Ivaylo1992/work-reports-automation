@@ -3,6 +3,8 @@ from typing import Optional, List
 
 import pandas as pd
 
+from prices import clean_prices_table
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s"
@@ -12,7 +14,7 @@ logging.basicConfig(
 def process_stock_report(
         input_file_path: str,
         output_file_path: str,
-        concept_filter: str = "OUTLET",
+        concept_filter: str = None,
         columns_to_drop: Optional[List[str]] = None,
         columns_to_format_as_int: Optional[List[str]] = None,
         excel_header_row: int = 2,
@@ -31,6 +33,9 @@ def process_stock_report(
         excel_header_row (int): The 0-indexed row number to use as the header. Defaults to 2.
         """
 
+        if concept_filter is None:
+            concept_filter = 'OUTLET'
+
         if columns_to_drop is None:
           columns_to_drop = [
               'STOCK_UPDATE',
@@ -44,7 +49,6 @@ def process_stock_report(
 
         if columns_to_format_as_int is None:
           columns_to_format_as_int = ['AVAILABLE']
-
 
         # Dynamically create the dictionary for .assign()
         format_assignments = {
@@ -67,11 +71,6 @@ def process_stock_report(
             logging.error(f"An unexpected error occurred during pivot table creation: {e}")
 
         logging.info(f"Saved to {output_file_path}")
-
-# process_stock_report(
-#     input_file_path='data/Available Stock Report.xlsx',
-#     output_file_path='data/new_report_basic.xlsx'
-# )
 
 
 def create_pivot_table(
@@ -132,7 +131,7 @@ def create_pivot_table(
         if column_to_pivot in pivot_table.columns.names:
             pivot_table = pivot_table.rename_axis(columns=None)
 
-        pivot_table.to_excel(output_file_path)
+        pivot_table.to_excel(output_file_path, index=True)
         logging.info(f"Successfully created pivot table in {output_file_path}")
 
     except KeyError as e:
@@ -142,28 +141,6 @@ def create_pivot_table(
         logging.error(f"An unexpected error occurred during pivot table creation: {e}")
 
 
-# Example 1: Basic usage with default arguments
-# create_pivot_table(
-#     input_file_path='data/new_report_basic.xlsx',
-#     output_file_path='data/pivot_table_basic.xlsx',
-# )
-
-# Example 2: Custom index columns and aggregation column
-# create_pivot_table(
-#     input_file_path='data/new_report_basic.xlsx',
-#     output_file_path='data/pivot_table_custom.xlsx',
-#     index_cols=['Brand', 'Category'],
-#     value_column='RESERVED', # Assuming 'RESERVED' is in the new_report_basic.xlsx
-#     agg_func='mean'
-# )
-
-# Example 3: Demonstrate missing column error
-# create_pivot_table(
-#     input_file_path='data/new_report_basic.xlsx',
-#     output_file_path='data/pivot_table_error.xlsx',
-#     index_cols=['NonExistentCol'], # This will trigger an error
-# )
-
 def merge_tables(
         prices_table_path: str,
         stock_table_path: str,
@@ -171,14 +148,33 @@ def merge_tables(
         needed_price_columns: Optional[List[str]] = None,
         merge_on: str = None,
 ) -> None:
+    """
+    Merges a price table with a stock table on a common column and saves the result.
+
+    Args:
+        prices_table_path (str): Path to the prices Excel file.
+        stock_table_path (str): Path to the stock Excel file.
+        output_file_path (str): Path to save the merged result.
+        needed_price_columns (List[str], optional): Columns to keep from the price table.
+        merge_on (str): Column to merge on.
+
+    Returns:
+        None on failure.
+    """
     stock_table = pd.read_excel(stock_table_path)
     prices_df = pd.read_excel(prices_table_path)
 
     if not needed_price_columns:
-        needed_price_columns = ['SKU_CODE', 'SalePrices', 'InitialPrice', 'PurchasePrice']
+        needed_price_columns = ['SKU_CODE', 'SalePrice', 'InitialPrice', 'PurchasePrice']
 
     if not merge_on:
         merge_on = 'SKU_CODE'
+
+    missing_columns = [c for c in needed_price_columns if c not in prices_df.columns]
+
+    if missing_columns:
+        logging.error(f"Error: Missing required columns in input file: {missing_columns}")
+        return
 
     try:
         merged_df = pd.merge(
@@ -188,18 +184,38 @@ def merge_tables(
             how='left',
         )
 
-        merged_df.to_excel(output_file_path)
+        merged_df.to_excel(output_file_path, index=False)
+        logging.info(f"Successfully merged {output_file_path}.")
+
     except KeyError as e:
         logging.error(f"Error: Column not found during merge table creation: {e}. ")
 
-
-merge_tables(
-    "data/clean_prices_basic.xlsx",
-    "data/new_report_basic.xlsx",
-    "data/merged.xlsx"
-)
+    except Exception as e:
+        logging.error(f"Unexpected error during merge: {e}")
+        return None
 
 
+# process_stock_report(
+#     'data/Available Stock Report.xlsx',
+#     'data/new_stock_report.xlsx',
+# )
 
+# create_pivot_table(
+#     'data/new_stock_report.xlsx',
+#     'data/new_pivot_table.xlsx',
+# )
+#
+# clean_prices_table(
+#     'data/prices.xlsx',
+#     'data/new_prices.xlsx',
+#     excel_header_row=2,
+# )
+
+#
+# merge_tables(
+#     'data/new_prices.xlsx',
+#     'data/new_pivot_table.xlsx',
+#     'data/new_merged_prices_basic.xlsx',
+# )
 
 
