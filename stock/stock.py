@@ -194,7 +194,7 @@ def merge_tables(
 
     except Exception as e:
         logging.error(f"Unexpected error during merge: {e}")
-        return None
+        return
 
 
 def move_columns(
