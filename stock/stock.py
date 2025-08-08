@@ -195,3 +195,66 @@ def merge_tables(
     except Exception as e:
         logging.error(f"Unexpected error during merge: {e}")
         return None
+
+
+def move_columns(
+        input_file_path: str,
+        output_file_path: str,
+        after_column: str,
+        columns_to_move: Optional[List[str]] = None,
+) -> None:
+    """
+        Moves specified columns in an Excel file to appear immediately after a given column,
+        then saves the result to a new Excel file.
+
+        Args:
+            input_file_path (str): Path to the input Excel file.
+            output_file_path (str): Path to save the modified Excel file.
+            after_column (str): The column after which the specified columns will be inserted.
+            columns_to_move (List[str], optional): List of column names to move.
+                Defaults to ['SalePrice', 'InitialPrice', 'PurchasePrice'] if not provided.
+
+        Returns:
+            None
+
+        Raises:
+            Logs an error if:
+                - The input file is not found.
+                - The specified columns are not in the DataFrame.
+                - The `after_column` is missing.
+                - Any other unexpected error occurs during processing.
+        """
+
+    df = None
+
+    try:
+        df = pd.read_excel(input_file_path)
+        logging.info(f'Successfully read {input_file_path}.')
+    except FileNotFoundError:
+        logging.error(f"File {input_file_path} not found.")
+    except Exception as e:
+        logging.error(f"Unexpected error during reading {input_file_path}: {e}")
+
+    columns = list(df.columns)
+
+    if not columns_to_move:
+        columns_to_move = ['SalePrice', 'InitialPrice', 'PurchasePrice']
+
+    if after_column not in df.columns:
+        logging.error(f"Column {after_column} not found.")
+        return
+
+    missing_columns = [c for c in columns_to_move if c not in df.columns]
+
+    if missing_columns:
+        logging.error(f"Error: Missing required columns in input file: {missing_columns}")
+        return
+
+    columns = [col for col in columns if col not in columns_to_move]
+
+    insert_at = columns.index(after_column) + 1
+    new_columns = columns[:insert_at] + columns_to_move + columns[insert_at:]
+
+    df = df.reindex(columns=new_columns)
+    df.to_excel(output_file_path, index=False)
+    logging.info(f"Columns moved. Output saved to {output_file_path}.")
