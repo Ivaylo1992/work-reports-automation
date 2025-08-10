@@ -1,43 +1,48 @@
-import logging
 import pandas as pd
+import logging
+from typing import Dict, Optional
 
-def clean_prices_table(
-        input_file_path: str,
-        output_file_path: str,
-        plant: int = 4315,
-        columns_to_rename: dict = None,
-        excel_header_row: int = 0,
-    ) -> None:
+def clean_prices_table_df(
+    df: pd.DataFrame,
+    plant: int = 4315,
+    columns_to_rename: Optional[Dict[str, str]] = None
+) -> pd.DataFrame:
     """
-    Cleans the prices table by filtering for a specific plant and renaming columns.
+    Cleans the prices table DataFrame by filtering for a specific plant and renaming columns.
 
     Args:
-        input_file_path (str): Path to the raw Excel file.
-        output_file_path (str): Path to save the cleaned Excel file.
-        plant (int): Plant code to filter on (default: 4315).
-        columns_to_rename (dict): Columns to rename, e.g., {'Material': 'SKU_CODE'}.
-        excel_header_row (int): Header row index (default: 0).
+        df (pd.DataFrame): Input DataFrame containing price data.
+        plant (int): Plant code to filter on. Defaults to 4315.
+        columns_to_rename (dict, optional): Mapping of columns to rename.
+                                            Defaults to {'Material': 'SKU_CODE'}.
+
+    Returns:
+        pd.DataFrame: Cleaned DataFrame.
+
+    Raises:
+        ValueError: If required columns are missing.
     """
     if columns_to_rename is None:
         columns_to_rename = {'Material': 'SKU_CODE'}
 
+    # Check required columns exist
+    required_columns = ['Plant'] + list(columns_to_rename.keys())
+    missing = [col for col in required_columns if col not in df.columns]
+    if missing:
+        logging.error(f"Missing expected columns: {missing}")
+        raise ValueError(f"Missing required columns: {missing}")
+
     try:
-        prices_data = pd.read_excel(input_file_path, header=excel_header_row)
-        logging.info(f'Successfully read {input_file_path}.')
+        # Filter and rename
+        cleaned_df = (
+            df[df['Plant'] == plant]
+            .reset_index(drop=True)
+            .rename(columns=columns_to_rename)
+        )
 
-        required_columns = ['Plant'] + list(columns_to_rename.keys())
-        missing = [col for col in required_columns if col not in prices_data.columns]
-        if missing:
-            logging.error(f"Missing expected columns: {missing}")
-            return
+        logging.info("Successfully cleaned prices table DataFrame.")
+        return cleaned_df
 
-        prices_data = prices_data[prices_data['Plant'] == plant].reset_index(drop=True)
-        prices_data.rename(columns=columns_to_rename, inplace=True)
-
-        prices_data.to_excel(output_file_path, index=False)
-        logging.info(f'Successfully created {output_file_path}.')
-
-    except FileNotFoundError:
-        logging.error(f'File {input_file_path} not found.')
     except Exception as e:
-        logging.error(f'Unexpected error occurred: {e}.')
+        logging.error(f"Unexpected error occurred: {e}")
+        raise

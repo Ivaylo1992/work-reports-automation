@@ -244,7 +244,3 @@ def add_column(
         df = move_columns(input_file_path, output_file_path, after_column, columns_to_move=[column_name])
         df.to_excel(output_file_path, index=False)
         logging.info(f"Columns moved. Output saved to {output_file_path}.")
-
-
-move_columns('../data/new_merged_prices_basic.xlsx', '../data/new_stock.xlsx', 'Subgen')
-add_column('../data/new_stock.xlsx', '../data/new_stock.xlsx', 'Mkp', calculation_formula=calculate_markup)
