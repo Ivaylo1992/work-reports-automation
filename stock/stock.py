@@ -134,7 +134,7 @@ def create_pivot_table_df(
         raise
 
 
-def merge_tables_df(
+def merge_tables(
     prices_df: pd.DataFrame,
     stock_df: pd.DataFrame,
     needed_price_columns: Optional[List[str]] = None,
@@ -183,67 +183,46 @@ def merge_tables_df(
 
 
 def move_columns(
-        input_file_path: str,
-        output_file_path: str,
-        after_column: str,
-        columns_to_move: Optional[List[str]] = None,
-):
+    df: pd.DataFrame,
+    after_column: str,
+    columns_to_move: Optional[List[str]] = None
+) -> pd.DataFrame:
     """
-        Moves specified columns in an Excel file to appear immediately after a given column,
-        then saves the result to a new Excel file.
+    Moves specified columns in a DataFrame to appear immediately after a given column.
 
-        Args:
-            input_file_path (str): Path to the input Excel file.
-            output_file_path (str): Path to save the modified Excel file.
-            after_column (str): The column after which the specified columns will be inserted.
-            columns_to_move (List[str], optional): List of column names to move.
-                Defaults to ['SalePrice', 'InitialPrice', 'PurchasePrice'] if not provided.
+    Args:
+        df (pd.DataFrame): Input DataFrame.
+        after_column (str): The column after which the specified columns will be inserted.
+        columns_to_move (List[str], optional): List of column names to move.
+                                               Defaults to ['SalePrice', 'InitialPrice', 'PurchasePrice'].
 
-        Returns:
-            None
-
-        Raises:
-            Logs an error if:
-                - The input file is not found.
-                - The specified columns are not in the DataFrame.
-                - The `after_column` is missing.
-                - Any other unexpected error occurs during processing.
-        """
-
-    df = None
-
-    try:
-        df = pd.read_excel(input_file_path)
-        logging.info(f'Successfully read {input_file_path}.')
-    except FileNotFoundError:
-        logging.error(f"File {input_file_path} not found.")
-    except Exception as e:
-        logging.error(f"Unexpected error during reading {input_file_path}: {e}")
-
-    columns = list(df.columns)
-
+    Returns:
+        pd.DataFrame: DataFrame with columns rearranged.
+    """
     if not columns_to_move:
         columns_to_move = ['SalePrice', 'InitialPrice', 'PurchasePrice']
 
     if after_column not in df.columns:
-        logging.error(f"Column {after_column} not found.")
-        return None
+        logging.error(f"Column {after_column} not found in DataFrame.")
+        raise ValueError(f"Missing after_column: {after_column}")
 
     missing_columns = [c for c in columns_to_move if c not in df.columns]
-
     if missing_columns:
-        logging.error(f"Error: Missing required columns in input file: {missing_columns}")
-        return None
+        logging.error(f"Missing required columns to move: {missing_columns}")
+        raise ValueError(f"Missing columns_to_move: {missing_columns}")
 
-    columns = [col for col in columns if col not in columns_to_move]
+    # Keep only columns that are not being moved
+    columns = [col for col in df.columns if col not in columns_to_move]
 
+    # Find insertion index
     insert_at = columns.index(after_column) + 1
+
+    # Create new column order
     new_columns = columns[:insert_at] + columns_to_move + columns[insert_at:]
 
-    df = df.reindex(columns=new_columns)
-    df.to_excel(output_file_path, index=False)
-    logging.info(f"Columns moved. Output saved to {output_file_path}.")
-    return df
+    logging.info("Successfully moved columns.")
+    return df.reindex(columns=new_columns)
+
 
 def add_column(
     input_file_path: str,
