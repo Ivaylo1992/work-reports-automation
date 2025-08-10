@@ -1,5 +1,5 @@
 import logging
-from typing import Optional, List, Callable
+from typing import Optional, List, Callable, Union
 import pandas as pd
 
 from utils.formulas import calculate_markup
@@ -134,33 +134,25 @@ def create_pivot_table_df(
         raise
 
 
-
-def merge_tables(
-        prices_table_path: str,
-        stock_table_path: str,
-        output_file_path: str,
-        needed_price_columns: Optional[List[str]] = None,
-        merge_on: str = None,
-) -> None:
+def merge_tables_df(
+    prices_df: pd.DataFrame,
+    stock_df: pd.DataFrame,
+    needed_price_columns: Optional[List[str]] = None,
+    merge_on: Optional[str] = None
+) -> pd.DataFrame:
     """
-    Merges a price table with a stock table on a common column and saves the result.
+    Merges a price DataFrame with a stock DataFrame on a common column.
 
     Args:
-        prices_table_path (str): Path to the prices Excel file.
-        stock_table_path (str): Path to the stock Excel file.
-        output_file_path (str): Path to save the merged result.
-        needed_price_columns (List[str], optional): Columns to keep from the price table.
-        merge_on (str): Column to merge on.
+        prices_df (pd.DataFrame): DataFrame containing price data.
+        stock_df (pd.DataFrame): DataFrame containing stock data.
+        needed_price_columns (List[str], optional): Columns to keep from the price DataFrame.
+                                                    Defaults to ['SKU_CODE', 'SalePrice', 'InitialPrice', 'PurchasePrice'].
+        merge_on (str, optional): Column to merge on. Defaults to 'SKU_CODE'.
 
     Returns:
-        None on failure.
+        pd.DataFrame: Merged DataFrame.
     """
-    stock_table = pd.read_excel(stock_table_path)
-    logging.info(f'Successfully read {stock_table_path}.')
-
-    prices_df = pd.read_excel(prices_table_path)
-    logging.info(f'Successfully read {prices_table_path}.')
-
     if not needed_price_columns:
         needed_price_columns = ['SKU_CODE', 'SalePrice', 'InitialPrice', 'PurchasePrice']
 
@@ -168,28 +160,26 @@ def merge_tables(
         merge_on = 'SKU_CODE'
 
     missing_columns = [c for c in needed_price_columns if c not in prices_df.columns]
-
     if missing_columns:
-        logging.error(f"Error: Missing required columns in input file: {missing_columns}")
-        return
+        logging.error(f"Missing required columns in price DataFrame: {missing_columns}")
+        raise ValueError(f"Missing columns in prices_df: {missing_columns}")
 
     try:
         merged_df = pd.merge(
-            stock_table,
+            stock_df,
             prices_df[needed_price_columns],
             on=merge_on,
-            how='left',
+            how='left'
         )
-
-        merged_df.to_excel(output_file_path, index=False)
-        logging.info(f"Successfully merged {output_file_path}.")
+        logging.info("Successfully merged DataFrames.")
+        return merged_df
 
     except KeyError as e:
-        logging.error(f"Error: Column not found during merge table creation: {e}. ")
-
+        logging.error(f"Column not found during merge: {e}")
+        raise
     except Exception as e:
         logging.error(f"Unexpected error during merge: {e}")
-        return
+        raise
 
 
 def move_columns(
