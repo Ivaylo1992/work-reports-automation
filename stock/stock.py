@@ -73,37 +73,29 @@ def process_stock_report_df(
         raise
 
 
-def create_pivot_table(
-        input_file_path: str,
-        output_file_path: str,
-        index_cols: Optional[List[str]] = None,
-        value_column: str = 'AVAILABLE',
-        column_to_pivot: str = 'STORE_CODE',
-        agg_func: str = 'sum',
-        excel_header_row: int = 0,
-):
+def create_pivot_table_df(
+    df: pd.DataFrame,
+    index_cols: Optional[List[str]] = None,
+    value_column: str = 'AVAILABLE',
+    column_to_pivot: str = 'STORE_CODE',
+    agg_func: Union[str, callable] = 'sum'
+) -> pd.DataFrame:
     """
-    Creates a pivot table from an Excel file, aggregates data and saves it.
+    Creates a pivot table from a DataFrame by aggregating data.
 
     Args:
-        input_file_path (str): Path to the input Excel file.
-        output_file_path (str): Path to save the generated pivot table Excel file.
-        index_cols (list, optional): A list of column names to use as the pivot table index. Defaults to common SKU/product attributes.
-        value_column (str, optional): The name of the column to aggregate (the 'values' in pivot_table).Defaults to 'AVAILABLE'.
-        column_to_pivot (str, optional): The name of the column whose unique values will become new columns.Defaults to 'STORE_CODE'.
-        agg_func (str, optional): The aggregation function to apply (e.g., 'sum', 'mean', 'count').Defaults to 'sum'.
-        excel_header_row (int, optional): The 0-indexed row number to use as the header when reading. Defaults to 0, assuming clean data.
-    """
+        df (pd.DataFrame): Input DataFrame.
+        index_cols (list, optional): A list of column names to use as the pivot table index.
+                                     Defaults to ['SKU_CODE', 'SKU_DESCRIPTION', 'Brand',
+                                                  'Category', 'Activity', 'Gen', 'Subgen'].
+        value_column (str, optional): The column to aggregate. Defaults to 'AVAILABLE'.
+        column_to_pivot (str, optional): The column whose unique values become new columns.
+                                         Defaults to 'STORE_CODE'.
+        agg_func (str or callable, optional): Aggregation function. Defaults to 'sum'.
 
-    try:
-        df = pd.read_excel(input_file_path, header=excel_header_row)
-        logging.info(f"Successfully read {input_file_path}. Columns: {df.columns}")
-    except FileNotFoundError:
-        logging.error(f"File {input_file_path} not found.")
-        return
-    except Exception as e:
-        logging.error(f"Error reading Excel file {input_file_path}: {e}")
-        return
+    Returns:
+        pd.DataFrame: Pivot table DataFrame.
+    """
 
     if index_cols is None:
         index_cols = [
@@ -111,34 +103,36 @@ def create_pivot_table(
             'Activity', 'Gen', 'Subgen'
         ]
 
-    # Validate that all required columns exist before proceeding
+    # Validate required columns
     required_columns = index_cols + [value_column, column_to_pivot]
     missing_columns = [col for col in required_columns if col not in df.columns]
 
     if missing_columns:
-        logging.error(f"Error: Missing required columns in input file: {missing_columns}")
+        logging.error(f"Missing required columns in DataFrame: {missing_columns}")
         logging.info(f"Available columns: {list(df.columns)}")
-        return
+        raise ValueError(f"Missing required columns: {missing_columns}")
 
     try:
         pivot_table = (
-            df.groupby(index_cols + [column_to_pivot])
-            [value_column]
+            df.groupby(index_cols + [column_to_pivot])[value_column]
             .agg(agg_func)
             .unstack(level=column_to_pivot, fill_value=0)
         )
 
+        # Remove column axis name if present
         if column_to_pivot in pivot_table.columns.names:
             pivot_table = pivot_table.rename_axis(columns=None)
 
-        pivot_table.to_excel(output_file_path, index=True)
-        logging.info(f"Successfully created pivot table in {output_file_path}")
+        logging.info("Successfully created pivot table.")
+        return pivot_table
 
     except KeyError as e:
-        logging.error(f"Error: Column not found during pivot table creation: {e}. "
-                      f"Check 'index_cols', 'value_column', or 'column_to_pivot'.")
+        logging.error(f"Column not found during pivot table creation: {e}")
+        raise
     except Exception as e:
-        logging.error(f"An unexpected error occurred during pivot table creation: {e}")
+        logging.error(f"Unexpected error during pivot table creation: {e}")
+        raise
+
 
 
 def merge_tables(
