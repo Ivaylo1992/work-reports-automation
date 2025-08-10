@@ -1,6 +1,8 @@
 import logging
-from typing import Optional, List
+from typing import Optional, List, Callable
 import pandas as pd
+
+from utils.formulas import calculate_markup
 
 logging.basicConfig(
     level=logging.INFO,
@@ -8,68 +10,67 @@ logging.basicConfig(
 )
 
 
-def process_stock_report(
-        input_file_path: str,
-        output_file_path: str,
-        concept_filter: str = None,
-        columns_to_drop: Optional[List[str]] = None,
-        columns_to_format_as_int: Optional[List[str]] = None,
-        excel_header_row: int = 2,
-    ) -> None:
-        """
-        Processes an available stock report, filters by concept,
-        drops specified columns, formats columns to integer, and saves to a new Excel file.
+def process_stock_report_df(
+    df: pd.DataFrame,
+    concept_filter: str = None,
+    columns_to_drop: Optional[List[str]] = None,
+    columns_to_format_as_int: Optional[List[str]] = None
+) -> pd.DataFrame:
+    """
+    Processes a stock report DataFrame: filters by concept,
+    drops specified columns, formats columns to integer, and returns the result.
 
-        Args:
-        input_file_path (str): Path to the input Excel file.
-        output_file_path (str): Path to save the processed Excel file.
-        concept_filter (str): The value in the 'Concept' column to filter by. Defaults to 'OUTLET'.
-        columns_to_drop (list): A list of column names to drop. Defaults to original list.
+    Args:
+        df (pd.DataFrame): Input DataFrame containing the stock report.
+        concept_filter (str): The value in the 'Concept' column to filter by.
+                              Defaults to 'OUTLET'.
+        columns_to_drop (list): A list of column names to drop.
+                                Defaults to ['STOCK_UPDATE', 'SIZE', 'Subcategory',
+                                             'Licence', 'Barcode', 'STOCK_WITHOUT_REZERVED',
+                                             'REZERVED'].
         columns_to_format_as_int (list): A list of column names to convert to integer type.
-                                          Defaults to ['AVAILABLE'].
-        excel_header_row (int): The 0-indexed row number to use as the header. Defaults to 2.
-        """
+                                         Defaults to ['AVAILABLE'].
 
-        if concept_filter is None:
-            concept_filter = 'OUTLET'
+    Returns:
+        pd.DataFrame: Processed DataFrame.
+    """
 
-        if columns_to_drop is None:
-          columns_to_drop = [
-              'STOCK_UPDATE',
-              'SIZE',
-              'Subcategory',
-              'Licence',
-              'Barcode',
-              'STOCK_WITHOUT_REZERVED',
-              'REZERVED'
-          ]
+    if concept_filter is None:
+        concept_filter = 'OUTLET'
 
-        if columns_to_format_as_int is None:
-          columns_to_format_as_int = ['AVAILABLE']
+    if columns_to_drop is None:
+        columns_to_drop = [
+            'STOCK_UPDATE',
+            'SIZE',
+            'Subcategory',
+            'Licence',
+            'Barcode',
+            'STOCK_WITHOUT_REZERVED',
+            'REZERVED'
+        ]
 
-        # Dynamically create the dictionary for .assign()
-        format_assignments = {
-          col: lambda x, c=col: x[c].astype(int) for col in columns_to_format_as_int
-        }
+    if columns_to_format_as_int is None:
+        columns_to_format_as_int = ['AVAILABLE']
 
-        try:
-            df_processed = (
-              pd.read_excel(input_file_path, header=excel_header_row)
-              .drop(columns=columns_to_drop)
+    # Create formatting operations for .assign()
+    format_assignments = {
+        col: (lambda x, c=col: x[c].astype(int)) for col in columns_to_format_as_int
+    }
+
+    try:
+        df_processed = (
+            df.drop(columns=[col for col in columns_to_drop if col in df.columns])
               .query(f'Concept == "{concept_filter}"')
               .reset_index(drop=True)
               .assign(**format_assignments)
-            )
+        )
 
-            logging.info(f"Successfully read {input_file_path}. Columns: {df_processed.columns}")
+        logging.info(f"Successfully processed DataFrame. Columns: {df_processed.columns}")
+        return df_processed
 
-            df_processed.to_excel(output_file_path, index=False)
-        except FileNotFoundError:
-            logging.error(f'File "{input_file_path}" not found.')
-        except Exception as e:
-            logging.error(f"An unexpected error occurred during pivot table creation: {e}")
-
-        logging.info(f"Saved to {output_file_path}")
+    except Exception as e:
+        logging.error(f"An error occurred during DataFrame processing: {e}")
+        raise
 
 
 def create_pivot_table(
@@ -202,7 +203,7 @@ def move_columns(
         output_file_path: str,
         after_column: str,
         columns_to_move: Optional[List[str]] = None,
-) -> None:
+):
     """
         Moves specified columns in an Excel file to appear immediately after a given column,
         then saves the result to a new Excel file.
@@ -242,13 +243,13 @@ def move_columns(
 
     if after_column not in df.columns:
         logging.error(f"Column {after_column} not found.")
-        return
+        return None
 
     missing_columns = [c for c in columns_to_move if c not in df.columns]
 
     if missing_columns:
         logging.error(f"Error: Missing required columns in input file: {missing_columns}")
-        return
+        return None
 
     columns = [col for col in columns if col not in columns_to_move]
 
@@ -258,3 +259,29 @@ def move_columns(
     df = df.reindex(columns=new_columns)
     df.to_excel(output_file_path, index=False)
     logging.info(f"Columns moved. Output saved to {output_file_path}.")
+    return df
+
+def add_column(
+    input_file_path: str,
+    output_file_path: str,
+    column_name: str,
+    after_column: str = None,
+    calculation_formula: Callable = None,
+):
+    df = pd.read_excel(input_file_path)
+    logging.info(f'Successfully read {input_file_path}.')
+
+    if calculation_formula:
+        df = calculation_formula(df, column_name)
+
+    df.to_excel(output_file_path, index=False)
+    logging.info(f"Saved to {output_file_path}.")
+
+    if after_column:
+        df = move_columns(input_file_path, output_file_path, after_column, columns_to_move=[column_name])
+        df.to_excel(output_file_path, index=False)
+        logging.info(f"Columns moved. Output saved to {output_file_path}.")
+
+
+move_columns('../data/new_merged_prices_basic.xlsx', '../data/new_stock.xlsx', 'Subgen')
+add_column('../data/new_stock.xlsx', '../data/new_stock.xlsx', 'Mkp', calculation_formula=calculate_markup)

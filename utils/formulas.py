@@ -3,8 +3,8 @@ import pandas as pd
 
 def calculate_markup(
         dataframe: pd.DataFrame,
-        cost_price_column_name: str,
-        sale_price_column_name: str,
+        cost_price_column_name: str ='PurchasePrice',
+        sale_price_column_name: str = 'SalePrice',
         round_to: int = 2,
         country: str = 'BG',
         column_name: str = 'Markup',
