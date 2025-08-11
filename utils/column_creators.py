@@ -1,7 +1,7 @@
 import pandas as pd
 
 
-def calculate_markup(
+def create_markup(
         dataframe: pd.DataFrame,
         cost_price_column_name: str ='PurchasePrice',
         sale_price_column_name: str = 'SalePrice',

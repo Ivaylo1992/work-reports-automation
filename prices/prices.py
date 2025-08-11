@@ -2,10 +2,10 @@ import pandas as pd
 import logging
 from typing import Dict, Optional
 
-def clean_prices_table_df(
+def clean_prices_table(
     df: pd.DataFrame,
     plant: int = 4315,
-    columns_to_rename: Optional[Dict[str, str]] = None
+    columns_to_rename: Optional[Dict[str, str]] = None,
 ) -> pd.DataFrame:
     """
     Cleans the prices table DataFrame by filtering for a specific plant and renaming columns.

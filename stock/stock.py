@@ -1,8 +1,6 @@
 import logging
-from typing import Optional, List, Callable, Union
+from typing import Optional, List, Union
 import pandas as pd
-
-from utils.formulas import calculate_markup
 
 logging.basicConfig(
     level=logging.INFO,
@@ -223,24 +221,3 @@ def move_columns(
     logging.info("Successfully moved columns.")
     return df.reindex(columns=new_columns)
 
-
-def add_column(
-    input_file_path: str,
-    output_file_path: str,
-    column_name: str,
-    after_column: str = None,
-    calculation_formula: Callable = None,
-):
-    df = pd.read_excel(input_file_path)
-    logging.info(f'Successfully read {input_file_path}.')
-
-    if calculation_formula:
-        df = calculation_formula(df, column_name)
-
-    df.to_excel(output_file_path, index=False)
-    logging.info(f"Saved to {output_file_path}.")
-
-    if after_column:
-        df = move_columns(input_file_path, output_file_path, after_column, columns_to_move=[column_name])
-        df.to_excel(output_file_path, index=False)
-        logging.info(f"Columns moved. Output saved to {output_file_path}.")
