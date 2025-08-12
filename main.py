@@ -1,7 +1,8 @@
 import pandas as pd
 
 from stock.stock import move_columns
-from utils.column_creators import create_markup
+from utils.column_creators import create_column
+from utils.formulas import markup
 
 # data_frame = pd.read_excel("../data/stock.xlsx", header=2)
 # new_data_frame = process_stock_report_df(data_frame)
@@ -24,3 +25,7 @@ from utils.column_creators import create_markup
 #
 # new_data = move_columns(data_frame, 'Subgen', columns_to_move=['SalePrice', 'InitialPrice', 'PurchasePrice', 'Markup'])
 # new_data.to_excel("data/fifth_edit_stock.xlsx")
+
+data_frame = pd.read_excel("data/third_edit_stock.xlsx")
+new_data = create_column(data_frame, 'Markup', after_column_name='Brand', formula=markup)
+new_data.to_excel("data/sixth_edit_stock.xlsx")
