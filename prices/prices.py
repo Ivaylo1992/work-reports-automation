@@ -1,10 +1,14 @@
 import pandas as pd
 import logging
-from typing import Dict, Optional
+from typing import Dict, Optional, List
+
+from utils.formatters import price_to_float
+
 
 def clean_prices_table(
     df: pd.DataFrame,
     plant: int = 4315,
+    columns_to_format: Optional[List[str]] = None,
     columns_to_rename: Optional[Dict[str, str]] = None,
 ) -> pd.DataFrame:
     """
@@ -13,6 +17,7 @@ def clean_prices_table(
     Args:
         df (pd.DataFrame): Input DataFrame containing price data.
         plant (int): Plant code to filter on. Defaults to 4315.
+        columns_to_format (list, optional): List of column names to format. Defaults to None.
         columns_to_rename (dict, optional): Mapping of columns to rename.
                                             Defaults to {'Material': 'SKU_CODE'}.
 
@@ -24,6 +29,10 @@ def clean_prices_table(
     """
     if columns_to_rename is None:
         columns_to_rename = {'Material': 'SKU_CODE'}
+
+    if columns_to_format is None:
+        columns_to_format = ['SalePrice', 'InitialPrice', 'PurchasePrice']
+        df = price_to_float(df, columns_to_format)
 
     # Check required columns exist
     required_columns = ['Plant'] + list(columns_to_rename.keys())
