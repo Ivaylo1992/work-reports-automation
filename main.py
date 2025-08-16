@@ -3,6 +3,7 @@ import pandas as pd
 from prices.prices import clean_prices_table
 from stock.stock import move_columns, process_stock_report_df, create_pivot_table_df, merge_tables
 from utils.column_creators import create_column
+from utils.formatters import to_percentage
 from utils.formulas import markup, percentage
 
 # data_frame = pd.read_excel("data/stock.xlsx", header=2)
@@ -26,9 +27,8 @@ from utils.formulas import markup, percentage
 # new_data_moved = move_columns(data_frame, 'Subgen', columns_to_move=['SalePrice', 'InitialPrice', 'PurchasePrice', 'Markup'])
 # new_data_moved.to_excel("data/fifth_edit_stock.xlsx")
 
+df = pd.read_excel("data/fifth_edit_stock.xlsx")
 
-data_frame = pd.read_excel("data/fifth_edit_stock.xlsx")
+df = create_column(df, '%', formula=percentage, after_column_name='PurchasePrice', formatter_func=to_percentage)
 
-data_frame = create_column(data_frame, '%', 'Markup', percentage)
-
-data_frame.to_excel("data/sixth_edit_stock.xlsx", index=False)
+df.to_excel("data/fifth_edit_stock.xlsx", index=False)

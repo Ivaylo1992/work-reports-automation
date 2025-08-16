@@ -41,3 +41,8 @@ def price_to_float(data_frame: pd.DataFrame, needed_columns: Optional[List[str]]
             logging.warning(f"Column '{column}' not found in DataFrame. Skipping.")
 
     return df_copy
+
+
+def to_percentage(df: pd.DataFrame, column_name: str) -> pd.DataFrame:
+    df[column_name] = df[column_name].apply(lambda x: f"{x:.2f}%")
+    return df

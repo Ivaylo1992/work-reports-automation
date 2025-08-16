@@ -10,6 +10,7 @@ def create_column(
         column_name: str,
         after_column_name: str = None,
         formula: Callable = None,
+        formatter_func: Callable = None,
         *args,
         **kwargs
 ) -> pd.DataFrame:
@@ -29,6 +30,9 @@ def create_column(
     formula : Callable, optional
         A function that computes the column values. It should accept the DataFrame
         as its first argument, followed by any additional arguments or keyword arguments.
+    formatter_func: Callable, optional
+        A function that takes a DataFrame as its first argument, and returns
+        a formatted DataFrame as its second argument. Formats a given column.
     *args
         Positional arguments to pass to the formula.
     **kwargs
@@ -50,6 +54,9 @@ def create_column(
         value = formula(dataframe, *args, **kwargs)
 
     dataframe[column_name] = value
+
+    if formatter_func:
+        dataframe = formatter_func(dataframe, column_name)
 
     if after_column_name:
         dataframe = move_columns(dataframe, after_column_name, columns_to_move=[column_name])
